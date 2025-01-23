@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>接福袋游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .page {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: none;
+        }
+
+        #welcomePage {
+            background: url('image/welcome_background.jpeg') center/cover no-repeat;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #startButton {
+            position: absolute;
+            top: 66%;
+            padding: 15px 30px;
+            font-size: 24px;
+            background: #ff4d4f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        #startButton:hover {
+            transform: scale(1.1);
+        }
+
+        #gamePage {
+            background: url('image/game_background.jpeg') center/cover no-repeat;
+        }
+
+        #statusBar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 20px;
+        }
+
+        #player {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 100px;
+            transition: left 0.1s linear;
+        }
+
+        .treasure {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            transition: top 0.016s linear;
+        }
+
+        #modalOverlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+        }
+
+        #gameOverModal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 101;
+            min-width: 300px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #gameOverModal h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #ff4d4f;
+        }
+
+        #gameOverModal h3 {
+            font-size: 22px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        #finalScore {
+            font-size: 40px;
+            color: #ff4d4f;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        #restartButton {
+            margin-top: 25px;
+            padding: 12px 30px;
+            font-size: 20px;
+            background: #ff4d4f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #restartButton:hover {
+            transform: scale(1.1);
+            background: #ff6b6b;
+        }
+
+        .game-button {
+            outline: none;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .game-button:active {
+            transform: translateY(2px);
+        }
+    </style>
+</head>
+<body>
+    <div id="welcomePage" class="page">
+        <button id="startButton" class="game-button">开始接福</button>
+    </div>
+
+    <div id="gamePage" class="page">
+        <div id="statusBar">
+            <div>福气值: <span id="score">0</span></div>
+            <div>时间: <span id="timer">30</span>s</div>
+        </div>
+        <img id="player" src="image/user.png" alt="玩家">
+    </div>
+
+    <div id="modalOverlay"></div>
+    <div id="gameOverModal">
+        <h2>游戏结束</h2>
+        <h3>福气值</h3>
+        <p id="finalScore">0</p>
+        <button id="restartButton" class="game-button">再来！</button>
+    </div>
+
+    <audio id="bgMusic" src="music/background_music.mp3" loop></audio>
+    <audio id="buttonSound" src="music/button.mp3"></audio>
+    <audio id="bombSound" src="music/bomb.mp3"></audio>
+    <audio id="music1" src="music/music1.mp3"></audio>
+    <audio id="music2" src="music/music2.mp3"></audio>
+    <audio id="music3" src="music/music3.mp3"></audio>
+    <audio id="music4" src="music/music4.mp3"></audio>
+
+    <script>
+        const treasures = [
+            { name: 'yuanbao', score: 10, sound: 'music1', weight: 15 },
+            { name: 'hongbao', score: 10, sound: 'music1', weight: 25 },
+            { name: 'fudai', score: 15, sound: 'music2', weight: 22 },
+            { name: 'jintiao', score: 15, sound: 'music2', weight: 12 },
+            { name: 'zhuanshi', score: 20, sound: 'music3', weight: 18 },
+            { name: 'zhihongbao', score: 20, sound: 'music3', weight: 8 },
+            { name: 'dahongbao', score: 30, sound: 'music4', weight: 5 },
+            { name: 'zhadan', score: -1, sound: 'bombSound', weight: 5 }
+        ];
+
+        let gameInterval;
+        let treasureInterval;
+        let score = 0;
+        let timeLeft = 30;
+        let isGameRunning = false;
+        let playerX = window.innerWidth / 2;
+        let touchStartX = 0;
+
+        const welcomePage = document.getElementById('welcomePage');
+        const gamePage = document.getElementById('gamePage');
+        const modalOverlay = document.getElementById('modalOverlay');
+        const startButton = document.getElementById('startButton');
+        const player = document.getElementById('player');
+        const gameOverModal = document.getElementById('gameOverModal');
+        const restartButton = document.getElementById('restartButton');
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+        const finalScoreElement = document.getElementById('finalScore');
+        const bgMusic = document.getElementById('bgMusic');
+        const buttonSound = document.getElementById('buttonSound');
+
+        // 页面切换函数
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.style.display = 'none';
+            });
+            document.getElementById(pageId).style.display = pageId === 'welcomePage' ? 'flex' : 'block';
+        }
+
+        // 初始化显示欢迎页
+        showPage('welcomePage');
+
+        function getRandomTreasure() {
+            const totalWeight = treasures.reduce((sum, item) => sum + item.weight, 0);
+            let random = Math.random() * totalWeight;
+            
+            for (const treasure of treasures) {
+                if (random < treasure.weight) {
+                    return treasure;
+                }
+                random -= treasure.weight;
+            }
+            return treasures[0];
+        }
+
+        function startGame() {
+            // 重置游戏状态
+            score = 0;
+            timeLeft = 30;
+            isGameRunning = true;
+            playerX = window.innerWidth / 2;
+            player.style.left = '50%';
+            player.style.transform = 'translateX(-50%)';
+            
+            // 更新界面
+            scoreElement.textContent = score;
+            timerElement.textContent = timeLeft;
+            modalOverlay.style.display = 'none';
+            gameOverModal.style.display = 'none';
+            
+            // 播放音效
+            buttonSound.play();
+            bgMusic.currentTime = 0;
+            bgMusic.play();
+            
+            // 切换到游戏页面
+            showPage('gamePage');
+            
+            // 启动游戏计时器
+            gameInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    timerElement.textContent = timeLeft;
+                } else {
+                    endGame('时间到！');
+                }
+            }, 1000);
+
+            // 启动财宝生成计时器
+            treasureInterval = setInterval(() => {
+                if (isGameRunning && Math.random() < 0.6) {
+                    createTreasure();
+                }
+            }, 200);
+        }
+
+        function createTreasure() {
+            const treasure = document.createElement('img');
+            const treasureType = getRandomTreasure();
+            treasure.src = `image/${treasureType.name}.png`;
+            treasure.className = 'treasure';
+            treasure.dataset.type = treasureType.name;
+            treasure.dataset.score = treasureType.score;
+            treasure.dataset.sound = treasureType.sound;
+            
+            treasure.style.left = Math.random() * (window.innerWidth - 50) + 'px';
+            treasure.style.top = '-50px';
+            gamePage.appendChild(treasure);
+
+            let posY = -50;
+            let speed = 3 + Math.random() * 2;
+
+            const fallInterval = setInterval(() => {
+                if (!isGameRunning) {
+                    clearInterval(fallInterval);
+                    treasure.remove();
+                    return;
+                }
+                
+                posY += speed;
+                treasure.style.top = posY + 'px';
+
+                const treasureRect = treasure.getBoundingClientRect();
+                const playerRect = player.getBoundingClientRect();
+
+                if (isColliding(treasureRect, playerRect)) {
+                    const soundId = treasure.dataset.sound;
+                    document.getElementById(soundId).cloneNode(true).play();
+                    
+                    if (treasure.dataset.type === 'zhadan') {
+                        endGame('炸弹！游戏结束');
+                    } else {
+                        score += parseInt(treasure.dataset.score);
+                        scoreElement.textContent = score;
+                    }
+                    
+                    treasure.remove();
+                    clearInterval(fallInterval);
+                }
+
+                if (posY > window.innerHeight) {
+                    treasure.remove();
+                    clearInterval(fallInterval);
+                }
+            }, 16);
+        }
+
+        function isColliding(rect1, rect2) {
+            return !(rect1.right < rect2.left || 
+                    rect1.left > rect2.right || 
+                    rect1.bottom < rect2.top || 
+                    rect1.top > rect2.bottom);
+        }
+
+        function endGame(reason) {
+            isGameRunning = false;
+            clearInterval(gameInterval);
+            clearInterval(treasureInterval);
+            
+            // 清除所有掉落物
+            document.querySelectorAll('.treasure').forEach(el => el.remove());
+            
+            // 更新结算界面
+            finalScoreElement.textContent = score;
+            modalOverlay.style.display = 'block';
+            gameOverModal.style.display = 'block';
+            
+            // 停止背景音乐
+            bgMusic.pause();
+        }
+
+        function movePlayer(x) {
+            const maxX = window.innerWidth - 100;
+            playerX = Math.max(0, Math.min(maxX, x));
+            player.style.left = playerX + 'px';
+            player.style.transform = 'translateX(0)';
+        }
+
+        // 键盘控制
+        document.addEventListener('keydown', (e) => {
+            if (!isGameRunning) return;
+            
+            const step = 30;
+            if (e.key === 'ArrowLeft') {
+                movePlayer(playerX - step);
+            } else if (e.key === 'ArrowRight') {
+                movePlayer(playerX + step);
+            }
+        });
+
+        // 触摸控制
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isGameRunning) return;
+            e.preventDefault();
+            
+            const touch = e.touches[0];
+            const diff = touch.clientX - touchStartX;
+            movePlayer(playerX + diff);
+            touchStartX = touch.clientX;
+        });
+
+        // startButton.addEventListener('click', startGame);
+        // restartButton.addEventListener('click', () => {
+        //     buttonSound.play();
+        //     showPage('welcomePage');
+        // });
+        // 将这两行注释去掉，并修改为：
+        startButton.addEventListener('click', startGame);
+        // restartButton.addEventListener('click', () => {
+        //     buttonSound.play();
+        //     resetGame();  // 先重置游戏状态
+        //     showPage('welcomePage');  // 然后显示欢迎页面
+        // });
+
+
+        // 添加重置游戏状态的函数
+// 添加重置游戏状态的函数
+function resetGame() {
+    // 重置所有游戏状态
+    score = 0;
+    timeLeft = 30;
+    isGameRunning = false;
+    playerX = window.innerWidth / 2;
+    
+    // 重置界面显示
+    scoreElement.textContent = '0';
+    timerElement.textContent = '30';
+    
+    // 重置玩家位置
+    player.style.left = '50%';
+    player.style.transform = 'translateX(-50%)';
+    
+    // 清除所有掉落物
+    document.querySelectorAll('.treasure').forEach(el => el.remove());
+    
+    // 重置音乐
+    bgMusic.pause();
+    bgMusic.currentTime = 0;
+    
+    // 隐藏结算界面
+    modalOverlay.style.display = 'none';
+    gameOverModal.style.display = 'none';
+
+    // 播放欢迎页面的背景音乐
+    bgMusic.play();
+}
+
+// 修改重启按钮的事件监听器
+restartButton.addEventListener('click', () => {
+    buttonSound.play();
+    showPage('welcomePage');  // 先显示欢迎页面
+    resetGame();  // 然后重置游戏状态（包括播放背景音乐）
+});
+
+
+
+    </script>
+</body>
+</html>
