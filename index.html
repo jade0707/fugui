@@ -297,7 +297,8 @@
             gamePage.appendChild(treasure);
 
             let posY = -50;
-            let speed = 3 + Math.random() * 2;
+            // 根据剩余时间调整下落速度，时间越少，速度越快
+            let speed = 3 + (30 - timeLeft) * 0.2; // 初始速度为3，每秒增加0.2的速度
 
             const fallInterval = setInterval(() => {
                 if (!isGameRunning) {
@@ -305,7 +306,7 @@
                     treasure.remove();
                     return;
                 }
-                
+        
                 posY += speed;
                 treasure.style.top = posY + 'px';
 
@@ -392,61 +393,43 @@
             touchStartX = touch.clientX;
         });
 
-        // startButton.addEventListener('click', startGame);
-        // restartButton.addEventListener('click', () => {
-        //     buttonSound.play();
-        //     showPage('welcomePage');
-        // });
-        // 将这两行注释去掉，并修改为：
         startButton.addEventListener('click', startGame);
-        // restartButton.addEventListener('click', () => {
-        //     buttonSound.play();
-        //     resetGame();  // 先重置游戏状态
-        //     showPage('welcomePage');  // 然后显示欢迎页面
-        // });
-
+        restartButton.addEventListener('click', () => {
+            buttonSound.play();
+            resetGame();  // 先重置游戏状态
+            showPage('welcomePage');  // 然后显示欢迎页面
+        });
 
         // 添加重置游戏状态的函数
-// 添加重置游戏状态的函数
-function resetGame() {
-    // 重置所有游戏状态
-    score = 0;
-    timeLeft = 30;
-    isGameRunning = false;
-    playerX = window.innerWidth / 2;
-    
-    // 重置界面显示
-    scoreElement.textContent = '0';
-    timerElement.textContent = '30';
-    
-    // 重置玩家位置
-    player.style.left = '50%';
-    player.style.transform = 'translateX(-50%)';
-    
-    // 清除所有掉落物
-    document.querySelectorAll('.treasure').forEach(el => el.remove());
-    
-    // 重置音乐
-    bgMusic.pause();
-    bgMusic.currentTime = 0;
-    
-    // 隐藏结算界面
-    modalOverlay.style.display = 'none';
-    gameOverModal.style.display = 'none';
+        function resetGame() {
+            // 重置所有游戏状态
+            score = 0;
+            timeLeft = 30;
+            isGameRunning = false;
+            playerX = window.innerWidth / 2;
+            
+            // 重置界面显示
+            scoreElement.textContent = '0';
+            timerElement.textContent = '30';
+            
+            // 重置玩家位置
+            player.style.left = '50%';
+            player.style.transform = 'translateX(-50%)';
+            
+            // 清除所有掉落物
+            document.querySelectorAll('.treasure').forEach(el => el.remove());
+            
+            // 重置音乐
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
+            
+            // 隐藏结算界面
+            modalOverlay.style.display = 'none';
+            gameOverModal.style.display = 'none';
 
-    // 播放欢迎页面的背景音乐
-    bgMusic.play();
-}
-
-// 修改重启按钮的事件监听器
-restartButton.addEventListener('click', () => {
-    buttonSound.play();
-    showPage('welcomePage');  // 先显示欢迎页面
-    resetGame();  // 然后重置游戏状态（包括播放背景音乐）
-});
-
-
-
+            // 播放欢迎页面的背景音乐
+            bgMusic.play();
+        }
     </script>
 </body>
 </html>
